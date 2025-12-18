@@ -6,17 +6,27 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
 import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.work.WorkManager
+import br.upe.horaDeTomar.BuildConfig
 import br.upe.horaDeTomar.data.AppDatabase
 import br.upe.horaDeTomar.data.daos.UserDao
+import br.upe.horaDeTomar.data.remote.FhirDataSource
+import br.upe.horaDeTomar.data.remote.FhirDataSourceImpl
+import br.upe.horaDeTomar.data.remote.FhirService
 import br.upe.horaDeTomar.data.repositories.AccountRepository
 import br.upe.horaDeTomar.data.repositories.MedicationRepository
 import br.upe.horaDeTomar.data.repositories.UserRepository
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.scalars.ScalarsConverterFactory
 import javax.inject.Singleton
 
 @Module
@@ -79,5 +89,36 @@ object AppModule {
     @Singleton
     fun provideAlarmManager(@ApplicationContext context: Context): AlarmManager {
         return context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    }
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(): Retrofit {
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+
+        val client = OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .build()
+
+
+        return Retrofit.Builder()
+            .baseUrl(BuildConfig.FHIR_URL_BASE)
+            .client(client)
+            .addConverterFactory(ScalarsConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFhirService(retrofit: Retrofit): FhirService {
+        return retrofit.create(FhirService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideWorkManager(@ApplicationContext context: Context): WorkManager {
+        return WorkManager.getInstance(context)
     }
 }

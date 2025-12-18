@@ -18,6 +18,8 @@ data class User(
     val name: String,
     val birthDate: String,
     val address: String,
+    val cpf: String,
     val accountId: Int,
-    val imageUri: String
+    val imageUri: String,
+    var isSynced: Boolean = false
 )

@@ -21,6 +21,12 @@ interface UserDao {
     @Query("SELECT imageUri FROM users WHERE id = :userId LIMIT 1")
     suspend fun getImageById(userId: Int): String
 
+    @Query("SELECT * FROM users WHERE isSynced = 0")
+    suspend fun getUnsyncedUsers(): List<User>
+
+    @Query("UPDATE users SET isSynced = 1 WHERE id = :userId")
+    suspend fun markAsSynced(userId: Int)
+
     @Query("SELECT * FROM users")
     fun getUsers(): Flow<List<User>>
 
@@ -32,4 +38,5 @@ interface UserDao {
 
     @Delete
     suspend fun delete(user: User)
+
 }

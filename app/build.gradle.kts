@@ -30,10 +30,10 @@ android {
                     load(localPropertiesFile.inputStream())
                 }
             }
-            storeFile = file(localProperties.getProperty("STORE_FILE", ""))
-            storePassword = localProperties.getProperty("STORE_PASSWORD", "")
-            keyPassword = localProperties.getProperty("KEY_PASSWORD", "")
-            keyAlias = localProperties.getProperty("KEY_ALIAS", "")
+            //storeFile = file(localProperties.getProperty("STORE_FILE", ""))
+            //storePassword = localProperties.getProperty("STORE_PASSWORD", "")
+            //keyPassword = localProperties.getProperty("KEY_PASSWORD", "")
+            //keyAlias = localProperties.getProperty("KEY_ALIAS", "")
         }
     }
 
@@ -42,6 +42,7 @@ android {
            applicationIdSuffix = ".debug"
            isMinifyEnabled = false
            isShrinkResources = false
+           buildConfigField("String", "FHIR_URL_BASE", "\"http://192.168.1.37:8080/fhir/\"")
        }
         getByName("release") {
             isMinifyEnabled = false
@@ -52,18 +53,38 @@ android {
             )
             signingConfig = signingConfigs.getByName("release")
             isDebuggable = true
+            //TODO trocar pela url da rnds
+            buildConfigField("String", "FHIR_URL_BASE", "\"http://192.168.1.37:8080/fhir/\"")
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "21"
     }
     buildFeatures {
         compose = true
         viewBinding = true
+        buildConfig = true
+    }
+
+    // ignora esses arquivos do projeto, pois o gradle estava dizendo que mais de uma biblioteca estava adicionando eles no build
+    packaging {
+        resources {
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/LICENSE.txt"
+            excludes += "META-INF/license.txt"
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/NOTICE.md"
+            excludes += "META-INF/NOTICE.txt"
+            excludes += "META-INF/notice.txt"
+            excludes += "META-INF/ASL2.0"
+            excludes += "META-INF/*.kotlin_module"
+        }
     }
 }
 
@@ -121,4 +142,12 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     implementation("io.coil-kt:coil-compose:2.4.0")
+
+    //Recursos Fhir
+    implementation("ca.uhn.hapi.fhir:hapi-fhir-structures-r4:8.4.0")
+
+    //Retrofit
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-scalars:2.9.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 }

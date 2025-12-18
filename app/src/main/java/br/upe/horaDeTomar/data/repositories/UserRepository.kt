@@ -4,7 +4,9 @@ import br.upe.horaDeTomar.data.daos.UserDao
 import br.upe.horaDeTomar.data.entities.User
 import kotlinx.coroutines.flow.Flow
 
-class UserRepository(private val dao: UserDao) {
+class UserRepository(
+    private val dao: UserDao
+) {
 
     suspend fun insert(user: User): Long {
         return dao.insert(user)

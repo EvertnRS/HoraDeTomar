@@ -58,11 +58,13 @@ fun UserRegisterScreen(
 ) {
     var userName by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
+    var cpf by remember { mutableStateOf("") }
     var selectedDate: String? by remember { mutableStateOf<String?>(null) }
     var showModal by remember { mutableStateOf(false) }
 
     var isErrorOnUserName by remember { mutableStateOf(false) }
     var isErrorOnAddress by remember { mutableStateOf(false) }
+    var isErrorOnCPF by remember { mutableStateOf(false) }
     var isErrorOnDate by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -138,6 +140,22 @@ fun UserRegisterScreen(
                 capitalization = KeyboardCapitalization.Words,
                 keyboardType = KeyboardType.Text,
                 isError = isErrorOnUserName,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp)
+            )
+
+            CardTextField(
+                label = "CPF do Usuário",
+                value = cpf,
+                onValueChange = {
+                    cpf = it
+                    isErrorOnCPF = it.isBlank()
+                },
+                placeholder = "Ex: 123.456.789-00",
+                capitalization = KeyboardCapitalization.Words,
+                keyboardType = KeyboardType.Text,
+                isError = isErrorOnCPF,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 6.dp)
@@ -233,9 +251,9 @@ fun UserRegisterScreen(
                             val persistedPath = context.persistImage(selectedPhotoUri!!)
                             if (isFirstTime) {
                                 accountViewModel.createAccount(userName)
-                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath)
+                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath, cpf)
                             } else {
-                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath)
+                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath, cpf)
                             }
                             onUserRegistered()
                         }
