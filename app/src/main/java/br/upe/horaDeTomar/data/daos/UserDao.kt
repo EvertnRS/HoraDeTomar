@@ -30,6 +30,9 @@ interface UserDao {
     @Query("SELECT * FROM users")
     fun getUsers(): Flow<List<User>>
 
+    @Query("SELECT * FROM users WHERE cpf = :cpf LIMIT 1")
+    suspend fun getByCpf(cpf: String): User?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(user: User): Long
 

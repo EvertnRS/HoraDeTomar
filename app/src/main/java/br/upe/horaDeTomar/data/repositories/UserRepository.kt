@@ -28,5 +28,9 @@ class UserRepository(
         return dao.getUserById(id)
     }
 
+    suspend fun getByCpf(cpf: String): User? {
+        return dao.getByCpf(cpf)
+    }
+
     val users: Flow<List<User>> = dao.getUsers();
 }

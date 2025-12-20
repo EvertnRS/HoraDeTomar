@@ -1,6 +1,9 @@
     package br.upe.horaDeTomar.ui.users
 
     import android.util.Log
+    import androidx.compose.runtime.getValue
+    import androidx.compose.runtime.mutableStateOf
+    import androidx.compose.runtime.setValue
     import androidx.lifecycle.ViewModel
     import androidx.lifecycle.viewModelScope
     import androidx.work.Constraints
@@ -12,9 +15,12 @@
     import br.upe.horaDeTomar.data.repositories.UserRepository
     import br.upe.horaDeTomar.data.worker.UserFhirSyncWorker
     import dagger.hilt.android.lifecycle.HiltViewModel
+    import kotlinx.coroutines.Job
+    import kotlinx.coroutines.delay
     import kotlinx.coroutines.flow.SharingStarted
     import kotlinx.coroutines.flow.StateFlow
     import kotlinx.coroutines.flow.stateIn
+    import kotlinx.coroutines.launch
     import javax.inject.Inject
 
     @HiltViewModel
@@ -29,6 +35,12 @@
                 emptyList()
             )
 
+        private var validationJob: Job? = null
+        var cpf by  mutableStateOf("")
+        var isErrorOnCPF by  mutableStateOf(false)
+        var errorMessage by mutableStateOf<String?>(null)
+
+
         suspend fun createUser(userName: String, address: String, birthDate: String, imageUri: String, cpf: String) {
             val user = User(
                 name = userName,
@@ -41,9 +53,32 @@
             )
             repository.insert(user)
 
-            Log.d("TESTE", "Usuário criado com sucesso!")
-
             initSync()
+        }
+
+        //valida se o cpf já está cadastrado no sistema
+        fun onCpfChange(newCpf: String) {
+            val cleanCpf = newCpf.filter { it.isDigit() }.take(11)
+            cpf = cleanCpf
+
+            if(cleanCpf.length < 11) {
+                isErrorOnCPF = false
+                return
+            }
+
+            validationJob?.cancel()
+            validationJob = viewModelScope.launch {
+                delay(500)
+                val userExists = repository.getByCpf(cleanCpf) != null
+                if (userExists) {
+                    isErrorOnCPF = true
+                    errorMessage = "CPF já cadastrado"
+                } else {
+                    isErrorOnCPF = false
+                    errorMessage = null
+                }
+            }
+
         }
 
         private fun initSync() {
@@ -60,7 +95,5 @@
                 ExistingWorkPolicy.REPLACE,
                 syncRequest
             )
-
-            Log.d("TESTE", "WorkManager enfileirado com REPLACE!")
         }
     }

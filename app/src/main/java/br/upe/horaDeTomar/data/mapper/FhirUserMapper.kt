@@ -3,6 +3,7 @@ package br.upe.horaDeTomar.data.mapper
 import android.util.Log
 import br.upe.horaDeTomar.data.entities.User
 import org.hl7.fhir.r4.model.HumanName
+import org.hl7.fhir.r4.model.Identifier
 import org.hl7.fhir.r4.model.Patient
 import java.time.LocalDate
 import java.time.ZoneId
@@ -20,6 +21,17 @@ object FhirUserMapper {
         name.addGiven(firstName)
         if (lastName.isNotEmpty()) name.family = lastName
         patient.addName(name)
+
+        if (user.cpf.isNotBlank()) {
+            val cpfIdentifier = Identifier()
+
+            //TODO: Definir URL oficial usada pela RNDS
+            cpfIdentifier.system = "https://saude.gov.br/sid/cpf"
+
+            cpfIdentifier.value = user.cpf.filter { it.isDigit() }
+
+            patient.addIdentifier(cpfIdentifier)
+        }
 
         //TODO: Adicionar Gênero do Paciente
 

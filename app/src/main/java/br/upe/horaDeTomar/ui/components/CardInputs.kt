@@ -33,6 +33,8 @@ fun CardTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
     isError: Boolean = false,
+    errorMessage: String? = null,
+    visualTransformation: VisualTransformation = VisualTransformation.None, // <- campo para adicionar máscaras
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -70,6 +72,7 @@ fun CardTextField(
                     capitalization = capitalization,
                     keyboardType = keyboardType
                 ),
+                visualTransformation = visualTransformation,
                 interactionSource = interaction,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -87,6 +90,16 @@ fun CardTextField(
                         contentPadding = PaddingValues(0.dp)
                     )
                 }
+            )
+        }
+
+        if (isError && !errorMessage.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 4.dp)
             )
         }
     }

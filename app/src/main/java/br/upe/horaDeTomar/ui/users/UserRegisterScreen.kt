@@ -13,6 +13,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,8 +25,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -58,13 +63,11 @@ fun UserRegisterScreen(
 ) {
     var userName by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
-    var cpf by remember { mutableStateOf("") }
     var selectedDate: String? by remember { mutableStateOf<String?>(null) }
     var showModal by remember { mutableStateOf(false) }
 
     var isErrorOnUserName by remember { mutableStateOf(false) }
     var isErrorOnAddress by remember { mutableStateOf(false) }
-    var isErrorOnCPF by remember { mutableStateOf(false) }
     var isErrorOnDate by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -146,16 +149,14 @@ fun UserRegisterScreen(
             )
 
             CardTextField(
-                label = "CPF do Usuário",
-                value = cpf,
-                onValueChange = {
-                    cpf = it
-                    isErrorOnCPF = it.isBlank()
-                },
-                placeholder = "Ex: 123.456.789-00",
-                capitalization = KeyboardCapitalization.Words,
-                keyboardType = KeyboardType.Text,
-                isError = isErrorOnCPF,
+                label = "Cpf do usuário",
+                value = userViewModel.cpf,
+                onValueChange = { userViewModel.onCpfChange(it) },
+                placeholder = "Ex: xxx.xxx.xxx-xx",
+                keyboardType = KeyboardType.Number,
+                visualTransformation = CpfMaskTransformation(),
+                isError = userViewModel.isErrorOnCPF,
+                errorMessage = userViewModel.errorMessage,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 6.dp)
@@ -246,14 +247,14 @@ fun UserRegisterScreen(
 
             RegisterButton(
                 onClick = {
-                    if (userName.isNotBlank() && address.isNotBlank() && !selectedDate.isNullOrBlank() && selectedPhotoUri != null) {
+                    if (userName.isNotBlank() && address.isNotBlank() && !selectedDate.isNullOrBlank() && selectedPhotoUri != null && !userViewModel.isErrorOnCPF) {
                         coroutineScope.launch {
                             val persistedPath = context.persistImage(selectedPhotoUri!!)
                             if (isFirstTime) {
                                 accountViewModel.createAccount(userName)
-                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath, cpf)
+                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath, userViewModel.cpf)
                             } else {
-                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath, cpf)
+                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath, userViewModel.cpf)
                             }
                             onUserRegistered()
                         }
@@ -272,6 +273,40 @@ fun UserRegisterScreen(
                     .height(52.dp)
                     .padding(vertical = 6.dp)
             )
+        }
+    }
+}
+class CpfMaskTransformation: VisualTransformation {
+    //###.###.###-##
+    override fun filter(text: AnnotatedString): TransformedText {
+        val cpfMask = text.text.mapIndexed { index, c ->
+            when(index) {
+                2 -> "$c."
+                5 -> "$c."
+                8 -> "$c-"
+                else -> c
+            }
+        }.joinToString(separator = "")
+        return TransformedText(AnnotatedString(cpfMask), CpfOffsetMapping)
+    }
+}
+
+object CpfOffsetMapping: OffsetMapping {
+    override fun originalToTransformed(offset: Int): Int {
+        return when {
+            offset <= 2 -> offset
+            offset <= 5 -> offset + 1
+            offset <= 8 -> offset + 2
+            else -> offset + 3
+        }
+    }
+
+    override fun transformedToOriginal(offset: Int): Int {
+        return when {
+            offset <= 2 -> offset
+            offset <= 5 -> offset - 1
+            offset <= 8 -> offset - 2
+            else -> offset - 3
         }
     }
 }
