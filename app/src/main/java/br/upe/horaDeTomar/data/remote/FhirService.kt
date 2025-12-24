@@ -15,4 +15,7 @@ interface FhirService {
 
     @GET("Patient")
     suspend fun getPatientByIdentifier(@Query("identifier") identifierString: String): ResponseBody
+
+    @POST("MedicationStatement")
+    suspend fun postMedicationStatement(@Body body: RequestBody): Response<ResponseBody>
 }

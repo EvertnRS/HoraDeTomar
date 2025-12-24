@@ -23,9 +23,7 @@ class UserFhirSyncWorker @AssistedInject constructor(
         return try {
             val users = dao.getUnsyncedUsers()
             users.forEach { user ->
-                Log.d("TESTE", "fora do if")
                 if (!isPatientAlreadyRegister(user)) {
-                    Log.d("TESTE", "dentro do if")
                     val result = dataSource.createPatient(user)
                     if (result != null) {
                         user.isSynced = true
@@ -44,8 +42,6 @@ class UserFhirSyncWorker @AssistedInject constructor(
 
     private suspend fun isPatientAlreadyRegister(user: User): Boolean {
         val patient = dataSource.getPatientByIdentifier(user.cpf)
-
-        Log.d("TESTE", "Patient: $patient")
 
         return patient != null
     }

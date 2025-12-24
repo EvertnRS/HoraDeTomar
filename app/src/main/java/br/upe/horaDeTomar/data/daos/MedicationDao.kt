@@ -35,6 +35,9 @@ interface MedicationDao {
     @Query("SELECT * FROM medications")
     fun getMedications(): Flow<List<Medication>>
 
+    @Query("SELECT * FROM medications WHERE isSynced = 0")
+    suspend fun getUnsyncedMedications(): List<Medication>
+
     @Query("SELECT imageUri FROM medications WHERE id = :medicationId LIMIT 1")
     fun getMedicationImage(medicationId: Int): String
 }

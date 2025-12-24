@@ -9,11 +9,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import br.upe.horaDeTomar.data.entities.Alarm
 import br.upe.horaDeTomar.data.entities.Medication
 import br.upe.horaDeTomar.data.manager.AlarmScheduler
 import br.upe.horaDeTomar.data.repositories.AlarmRepository
 import br.upe.horaDeTomar.data.repositories.MedicationRepository
+import br.upe.horaDeTomar.data.worker.MedicationFhirSyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +31,8 @@ import javax.inject.Inject
 class MedicationsViewModel @Inject constructor(
     private val repository: MedicationRepository,
     private val alarmRepository: AlarmRepository,
-    private val alarmScheduler: AlarmScheduler
+    private val alarmScheduler: AlarmScheduler,
+    private val workManager: WorkManager
 ) : ViewModel(), AlarmActions {
 
     val medications: StateFlow<List<Medication>> = repository.medications
@@ -83,6 +90,8 @@ class MedicationsViewModel @Inject constructor(
             preparePendingAlarms(pendingAlarms.size, medicationId = newMedicationId)
         }
         saveAllPendingAlarmsForMedication(newMedicationId)
+
+        initSync()
     }
 
     private suspend fun saveAllPendingAlarmsForMedication(medicationId: Int) {
@@ -140,4 +149,19 @@ class MedicationsViewModel @Inject constructor(
         return repository.getById(alarm.medicationId)
     }
 
+    private fun initSync() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val syncRequest = OneTimeWorkRequestBuilder<MedicationFhirSyncWorker>()
+            .setConstraints(constraints)
+            .build()
+
+        workManager.enqueueUniqueWork(
+            "sync_novos_medicamentos",
+            ExistingWorkPolicy.REPLACE,
+            syncRequest
+        )
+    }
 }

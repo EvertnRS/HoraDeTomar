@@ -24,5 +24,6 @@ data class Medication(
     val dose: String,
     val via: String,
     val userId: Int,
-    val imageUri: String
+    val imageUri: String,
+    var isSynced: Boolean = false
 )

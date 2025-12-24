@@ -37,21 +37,28 @@ class AlarmScheduler @Inject constructor(
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-                !alarmManager.canScheduleExactAlarms()
-            ) {
-                val showIntent = PendingIntent.getActivity(
-                    context,
-                    reqCode,
-                    Intent(context, br.upe.horaDeTomar.ui.reminders.AlarmActivity::class.java)
-                        .putExtra("alarmId", alarm.id)
-                        .putExtra("MEDICATION_ID", alarm.medicationId),
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-                val clockInfo = AlarmClockInfo(triggerAt, showIntent)
-                alarmManager.setAlarmClock(clockInfo, pi)
-            } else {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+            // Try-Catch para evitar o crash
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                    !alarmManager.canScheduleExactAlarms()
+                ) {
+                    val showIntent = PendingIntent.getActivity(
+                        context,
+                        reqCode,
+                        Intent(context, br.upe.horaDeTomar.ui.reminders.AlarmActivity::class.java)
+                            .putExtra("alarmId", alarm.id)
+                            .putExtra("MEDICATION_ID", alarm.medicationId),
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    val clockInfo = AlarmClockInfo(triggerAt, showIntent)
+                    alarmManager.setAlarmClock(clockInfo, pi)
+                } else {
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+                }
+            } catch (e: SecurityException) {
+                Log.e("ALARM_SCHEDULER", "Permissão negada para alarme exato. Usando fallback.", e)
+                // Usa alarme comum que não exige permissão, para o app não fechar
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAt, pi)
             }
         }
     }
@@ -76,21 +83,28 @@ class AlarmScheduler @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            !alarmManager.canScheduleExactAlarms()
-        ) {
-            val show = PendingIntent.getActivity(
-                context,
-                alarmId,
-                Intent(context, br.upe.horaDeTomar.ui.reminders.AlarmActivity::class.java)
-                    .putExtra("alarmId", alarmId)
-                    .putExtra("MEDICATION_ID", medicationId),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val clockInfo = AlarmClockInfo(cal.timeInMillis, show)
-            alarmManager.setAlarmClock(clockInfo, pi)
-        } else {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
+        // Try-Catch para evitar o crash
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                !alarmManager.canScheduleExactAlarms()
+            ) {
+                val show = PendingIntent.getActivity(
+                    context,
+                    alarmId,
+                    Intent(context, br.upe.horaDeTomar.ui.reminders.AlarmActivity::class.java)
+                        .putExtra("alarmId", alarmId)
+                        .putExtra("MEDICATION_ID", medicationId),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val clockInfo = AlarmClockInfo(cal.timeInMillis, show)
+                alarmManager.setAlarmClock(clockInfo, pi)
+            } else {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
+            }
+        } catch (e: SecurityException) {
+            Log.e("ALARM_SCHEDULER", "Permissão negada para alarme exato (Snooze). Usando fallback.", e)
+            // Usa alarme comum que não exige permissão, para o app não fechar
+            alarmManager.set(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
         }
     }
 

@@ -1,7 +1,10 @@
 package br.upe.horaDeTomar.data.remote
 
 import android.util.Log
+import br.upe.horaDeTomar.data.entities.Alarm
+import br.upe.horaDeTomar.data.entities.Medication
 import br.upe.horaDeTomar.data.entities.User
+import br.upe.horaDeTomar.data.mapper.FhirMedicationMapper
 import br.upe.horaDeTomar.data.mapper.FhirUserMapper
 import ca.uhn.fhir.context.FhirContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -66,9 +69,37 @@ class FhirDataSourceImpl @Inject constructor(
             return null
 
         } catch (e: Exception) {
-            Log.e("TESTE", "Erro ao parsear FHIR: ${e.message}")
+            Log.e("getPatientByIdentifier", "Erro ao parsear FHIR: ${e.message}")
             e.printStackTrace()
             return null
+        }
+    }
+
+    override suspend fun createMedicationStatement(medication: Medication, alarms: List<Alarm>, patientFhirId: String): String? {
+        val fhirStatement = FhirMedicationMapper.toFhirMedicationStatement(
+            medication = medication,
+            alarms = alarms,
+            patientFhirId = patientFhirId
+        )
+
+        val jsonResource = parser.encodeResourceToString(fhirStatement)
+        val mediaType = "application/fhir+json".toMediaType()
+        val requestBody = jsonResource.toRequestBody(mediaType)
+
+        return try {
+            val response = service.postMedicationStatement(requestBody)
+            if (response.isSuccessful) {
+                response.body()?.string()
+            } else {
+                Log.d(
+                    "createMedicationStatement",
+                    "Erro ao criar MedicationStatement no FHIR: ${response.errorBody()?.string()}"
+                )
+                null
+            }
+        }catch (e: Exception) {
+            Log.d("createMedicationStatement", "Erro ao criar MedicationStatement no FHIR: ${e.message}")
+            null
         }
     }
 }
