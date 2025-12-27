@@ -18,4 +18,6 @@ interface FhirService {
 
     @POST("MedicationStatement")
     suspend fun postMedicationStatement(@Body body: RequestBody): Response<ResponseBody>
+    @GET("Medication")
+    suspend fun getMedicationByCode(@Query("code:text") code: String): Response<ResponseBody>
 }

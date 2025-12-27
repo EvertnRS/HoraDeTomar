@@ -21,5 +21,6 @@ data class User(
     val cpf: String,
     val accountId: Int,
     val imageUri: String,
-    var isSynced: Boolean = false
+    var isSynced: Boolean = false,
+    var gender: String
 )

@@ -37,6 +37,7 @@ import androidx.navigation.NavController
 import br.upe.horaDeTomar.R
 import br.upe.horaDeTomar.ui.AccountViewModel
 import br.upe.horaDeTomar.ui.components.CardActionField
+import br.upe.horaDeTomar.ui.components.CardSelectField
 import br.upe.horaDeTomar.ui.components.CardTextField
 import br.upe.horaDeTomar.ui.components.DatePickerModal
 import br.upe.horaDeTomar.ui.components.RegisterButton
@@ -63,12 +64,14 @@ fun UserRegisterScreen(
 ) {
     var userName by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
+    var gender by remember { mutableStateOf("") }
     var selectedDate: String? by remember { mutableStateOf<String?>(null) }
     var showModal by remember { mutableStateOf(false) }
 
     var isErrorOnUserName by remember { mutableStateOf(false) }
     var isErrorOnAddress by remember { mutableStateOf(false) }
     var isErrorOnDate by remember { mutableStateOf(false) }
+    var isErrorOnGender by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -157,6 +160,21 @@ fun UserRegisterScreen(
                 visualTransformation = CpfMaskTransformation(),
                 isError = userViewModel.isErrorOnCPF,
                 errorMessage = userViewModel.errorMessage,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp)
+            )
+
+            CardSelectField(
+                label = "Sexo",
+                value = gender.ifBlank { null },
+                onValueChange = {
+                    gender = it
+                    isErrorOnGender = it.isBlank()
+                },
+                placeholder = "Selecione o seu sexo",
+                options = listOf("Masculino", "Feminino", "Outro"),
+                isError = isErrorOnGender,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 6.dp)
@@ -252,9 +270,9 @@ fun UserRegisterScreen(
                             val persistedPath = context.persistImage(selectedPhotoUri!!)
                             if (isFirstTime) {
                                 accountViewModel.createAccount(userName)
-                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath, userViewModel.cpf)
+                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath, userViewModel.cpf, gender)
                             } else {
-                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath, userViewModel.cpf)
+                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath, userViewModel.cpf, gender)
                             }
                             onUserRegistered()
                         }

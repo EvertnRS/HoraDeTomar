@@ -41,7 +41,9 @@
         var errorMessage by mutableStateOf<String?>(null)
 
 
-        suspend fun createUser(userName: String, address: String, birthDate: String, imageUri: String, cpf: String) {
+        suspend fun createUser(userName: String, address: String, birthDate: String, imageUri: String, cpf: String, gender: String) {
+            Log.d("TESTE", "genero: $gender")
+
             val user = User(
                 name = userName,
                 address = address,
@@ -49,7 +51,8 @@
                 accountId = 1,
                 imageUri = imageUri, // Assumindo uma account ID fixa para simplificação
                 cpf = cpf,
-                isSynced = false
+                isSynced = false,
+                gender = gender
             )
             repository.insert(user)
 

@@ -17,10 +17,14 @@ import androidx.work.WorkManager
 import br.upe.horaDeTomar.data.entities.Alarm
 import br.upe.horaDeTomar.data.entities.Medication
 import br.upe.horaDeTomar.data.manager.AlarmScheduler
+import br.upe.horaDeTomar.data.remote.FhirDataSource
+import br.upe.horaDeTomar.data.remote.MedicationSearchResult
 import br.upe.horaDeTomar.data.repositories.AlarmRepository
 import br.upe.horaDeTomar.data.repositories.MedicationRepository
 import br.upe.horaDeTomar.data.worker.MedicationFhirSyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -32,7 +36,8 @@ class MedicationsViewModel @Inject constructor(
     private val repository: MedicationRepository,
     private val alarmRepository: AlarmRepository,
     private val alarmScheduler: AlarmScheduler,
-    private val workManager: WorkManager
+    private val workManager: WorkManager,
+    private val fhirDataSource: FhirDataSource
 ) : ViewModel(), AlarmActions {
 
     val medications: StateFlow<List<Medication>> = repository.medications
@@ -48,6 +53,16 @@ class MedicationsViewModel @Inject constructor(
 
     var pendingAlarms = mutableStateListOf<Alarm>()
         private set
+
+    private var searchJob: Job? = null
+
+    var searchResults = mutableStateListOf<MedicationSearchResult>()
+        private set
+
+    var isSearching by mutableStateOf(false)
+        private set
+
+    private var selectedFhirId: String? = null
 
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     fun preparePendingAlarms(rep: Int, medicationId: Int? = null) {
@@ -82,6 +97,7 @@ class MedicationsViewModel @Inject constructor(
 
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     suspend fun createMedication() {
+        Log.d("TESTE", "criando medicamento")
         val newMedicationId = repository.insert(medicationCreationState).toInt()
         medicationCreationState = medicationCreationState.copy(id = newMedicationId)
         if (pendingAlarms.isEmpty()) {
@@ -91,7 +107,7 @@ class MedicationsViewModel @Inject constructor(
         }
         saveAllPendingAlarmsForMedication(newMedicationId)
 
-        initSync()
+        initSync(localId = newMedicationId, fhirId = selectedFhirId)
     }
 
     private suspend fun saveAllPendingAlarmsForMedication(medicationId: Int) {
@@ -149,19 +165,55 @@ class MedicationsViewModel @Inject constructor(
         return repository.getById(alarm.medicationId)
     }
 
-    private fun initSync() {
+    private fun initSync(localId: Int, fhirId: String?) {
+        Log.d("TESTE", "initSync: $localId $fhirId")
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
+        val inputData = androidx.work.Data.Builder()
+            .putInt("local_medication_id", localId)
+            .apply {
+                if(fhirId != null) putString("remove_fhir_id", fhirId)
+            }
+            .build()
+
         val syncRequest = OneTimeWorkRequestBuilder<MedicationFhirSyncWorker>()
             .setConstraints(constraints)
+            .setInputData(inputData)
             .build()
 
         workManager.enqueueUniqueWork(
-            "sync_novos_medicamentos",
-            ExistingWorkPolicy.REPLACE,
+            "sync_novos_medicamentos_$localId",
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
             syncRequest
         )
+    }
+
+    fun onMedicationNameChange(text: String) {
+        selectedFhirId = null
+        medicationCreationState = medicationCreationState.copy(name = text)
+
+        searchJob?.cancel()
+
+        searchJob = viewModelScope.launch {
+            delay(500)
+            if(text.length >= 3) {
+                isSearching = true
+                var results = fhirDataSource.searchMedications(text)
+                searchResults.clear()
+                searchResults.addAll(results)
+                isSearching = false
+            } else {
+                searchResults.clear()
+            }
+        }
+    }
+
+    fun onMedicationSelected(medication: MedicationSearchResult) {
+        medicationCreationState = medicationCreationState.copy(name = medication.name)
+        selectedFhirId = medication.id
+        searchResults.clear()
+        isSearching = false
     }
 }

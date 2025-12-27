@@ -2,6 +2,7 @@ package br.upe.horaDeTomar.data.mapper
 
 import android.util.Log
 import br.upe.horaDeTomar.data.entities.User
+import org.hl7.fhir.r4.model.Enumerations
 import org.hl7.fhir.r4.model.HumanName
 import org.hl7.fhir.r4.model.Identifier
 import org.hl7.fhir.r4.model.Patient
@@ -25,7 +26,6 @@ object FhirUserMapper {
         if (user.cpf.isNotBlank()) {
             val cpfIdentifier = Identifier()
 
-            //TODO: Definir URL oficial usada pela RNDS
             cpfIdentifier.system = "https://saude.gov.br/sid/cpf"
 
             cpfIdentifier.value = user.cpf.filter { it.isDigit() }
@@ -33,7 +33,12 @@ object FhirUserMapper {
             patient.addIdentifier(cpfIdentifier)
         }
 
-        //TODO: Adicionar Gênero do Paciente
+        patient.gender = when (user.gender.lowercase()) {
+            "masculino", "m", "homem", "male" -> Enumerations.AdministrativeGender.MALE
+            "feminino", "f", "mulher", "female" -> Enumerations.AdministrativeGender.FEMALE
+            "outro", "other" -> Enumerations.AdministrativeGender.OTHER
+            else -> Enumerations.AdministrativeGender.UNKNOWN
+        }
 
         try {
             val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
@@ -44,7 +49,6 @@ object FhirUserMapper {
 
         } catch (e: Exception) {
             Log.e("toFhirPatient", "Erro ao converter data: ${user.birthDate}. Erro: ${e.message}")
-            // TODO: Definir uma data padrão ou deixar null
         }
 
         patient.active = true

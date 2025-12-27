@@ -7,9 +7,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -17,7 +20,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import br.upe.horaDeTomar.ui.components.CardTextField
@@ -28,13 +33,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import br.upe.horaDeTomar.R
 import br.upe.horaDeTomar.data.entities.Medication
@@ -50,6 +59,7 @@ import br.upe.horaDeTomar.util.persistImage
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import androidx.compose.foundation.lazy.items
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,6 +68,9 @@ fun RegisterMedicineScreen(
     viewModel: MedicationsViewModel = hiltViewModel(),
     navControler: NavController,
 ) {
+    val medicationState = viewModel.medicationCreationState
+    val searchResults = viewModel.searchResults
+
     var medicineName by remember { mutableStateOf("") }
     var via by remember { mutableStateOf("") }
     var dose by remember { mutableStateOf("") }
@@ -144,12 +157,9 @@ fun RegisterMedicineScreen(
 
             CardTextField(
                 label = "Nome do medicamento",
-                value = medicineName,
-                onValueChange = {
-                    medicineName = it
-                    isErrorOnMedicineName = it.isBlank()
-                },
-                placeholder = "Ex: Paracetamol",
+                value = medicationState.name,
+                onValueChange = { viewModel.onMedicationNameChange(it) },
+                placeholder = "Ex: Dipirona",
                 capitalization = KeyboardCapitalization.Words,
                 keyboardType = KeyboardType.Text,
                 isError = isErrorOnMedicineName,
@@ -157,6 +167,34 @@ fun RegisterMedicineScreen(
                     .fillMaxWidth()
                     .padding(vertical = 6.dp)
             )
+
+            AnimatedVisibility(visible = searchResults.isNotEmpty()) {
+                ElevatedCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 200.dp)
+                        .padding(bottom = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp)
+                ) {
+                    LazyColumn {
+                        items(searchResults) { result ->
+                            ListItem(
+                                headlineContent = { Text(result.name, fontWeight = FontWeight.Medium) },
+                                supportingContent = {
+                                    if(result.code != null) Text("Cód: ${result.code}", fontSize = 12.sp, color = Color.Gray)
+                                },
+                                modifier = Modifier.clickable {
+                                    viewModel.onMedicationSelected(result)
+                                    focusManager.clearFocus()
+                                }
+                            )
+                            HorizontalDivider(thickness = 0.5.dp, color = Color.LightGray)
+                        }
+                    }
+                }
+            }
 
             CardSelectField(
                 label = "Via",
@@ -263,7 +301,7 @@ fun RegisterMedicineScreen(
 
             RegisterButton(
                 onClick = {
-                    if (medicineName.isNotBlank() && via.isNotBlank() && dose.isNotBlank() && selectedImageUri != null) {
+                    if (medicationState.name.isNotEmpty() && via.isNotBlank() && dose.isNotBlank() && selectedImageUri != null) {
                         coroutineScope.launch {
                             val persistedPath = context.persistImage(selectedImageUri!!)
                             val medication = Medication(
