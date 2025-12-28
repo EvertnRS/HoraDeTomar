@@ -23,12 +23,11 @@ class UserFhirSyncWorker @AssistedInject constructor(
         return try {
             val users = dao.getUnsyncedUsers()
             users.forEach { user ->
-                if (!isPatientAlreadyRegister(user)) {
-                    val result = dataSource.createPatient(user)
-                    if (result != null) {
-                        user.isSynced = true
-                        dao.update(user)
-                    }
+                val synced =
+                    isPatientAlreadyRegister(user) || dataSource.createPatient(user) != null
+                if (synced) {
+                    user.isSynced = true
+                    dao.update(user)
                 }
             }
 

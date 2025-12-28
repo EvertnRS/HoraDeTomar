@@ -42,8 +42,6 @@
 
 
         suspend fun createUser(userName: String, address: String, birthDate: String, imageUri: String, cpf: String, gender: String) {
-            Log.d("TESTE", "genero: $gender")
-
             val user = User(
                 name = userName,
                 address = address,
