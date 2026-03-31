@@ -6,20 +6,32 @@ import br.upe.horaDeTomar.data.entities.Medication
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Dosage
 import org.hl7.fhir.r4.model.MedicationStatement
+import org.hl7.fhir.r4.model.Medication as FhirMedication
 import org.hl7.fhir.r4.model.Reference
 import org.hl7.fhir.r4.model.Timing
 import java.util.Date
 
 object FhirMedicationMapper {
-    fun toFhirMedicationStatement(medication: Medication, alarms: List<Alarm>, patientFhirId: String, medicationFhirId: String?): MedicationStatement {
+
+    fun toFhirMedication(medication: Medication): FhirMedication {
+        return FhirMedication().apply {
+            status = FhirMedication.MedicationStatus.ACTIVE
+            code = CodeableConcept().apply {
+                text = medication.name
+            }
+        }
+    }
+    fun toFhirMedicationStatement(
+        medication: Medication,
+        alarms: List<Alarm>,
+        patientFhirId: String,
+        medicationFhirId: String?
+    ): MedicationStatement {
         val statement = MedicationStatement()
         statement.status = MedicationStatement.MedicationStatementStatus.ACTIVE
 
-        Log.d("TESTE", "toFhirMedicationStatement: Patient: $patientFhirId Medication: $medicationFhirId")
-
         if (medicationFhirId != null) {
             val medReference = Reference("Medication/$medicationFhirId")
-            Log.d("TESTE", "medReference: $medReference")
             medReference.display = medication.name
             statement.medication = medReference
         } else {
@@ -28,7 +40,6 @@ object FhirMedicationMapper {
             statement.medication = medConcept
         }
 
-        Log.d("TESTE", "statement: ${statement.medication}")
 
         statement.subject = Reference("Patient/$patientFhirId")
         statement.effective = org.hl7.fhir.r4.model.DateTimeType(Date())
@@ -37,19 +48,28 @@ object FhirMedicationMapper {
         dosageElement.text = "${medication.dose} - ${medication.via}"
 
         val frequencyDescription = buildString {
-            if(alarms.isEmpty()) {
+            if (alarms.isEmpty()) {
                 append("Nenhuma vez por dia")
             } else {
                 alarms.forEach { alarm ->
-                    val days = alarm.daysSelected.filter { it.value }.keys.joinToString(", ")
-                    if(days.isNotEmpty()) {
-                        append("${alarm.hour}:${alarm.minute} ($days);")
+                    val days = alarm.daysSelected
+                        .filter { it.value }
+                        .keys
+                        .joinToString(", ") { it.toString() }
+
+                    val hourFormatted = "%02d:%02d".format(
+                        alarm.hour.toIntOrNull() ?: 0,
+                        alarm.minute.toIntOrNull() ?: 0
+                    )
+
+                    if (days.isNotEmpty()) {
+                        append("$hourFormatted ($days); ")
                     } else {
-                        append("${alarm.hour}:${alarm.minute};")
+                        append("$hourFormatted; ")
                     }
                 }
             }
-        }
+        }.trim()
 
         val timing = Timing()
         timing.code = CodeableConcept().setText(frequencyDescription)
@@ -58,6 +78,5 @@ object FhirMedicationMapper {
         statement.dosage = listOf(dosageElement)
 
         return statement
-
     }
 }

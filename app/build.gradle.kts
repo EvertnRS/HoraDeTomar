@@ -42,7 +42,7 @@ android {
            applicationIdSuffix = ".debug"
            isMinifyEnabled = false
            isShrinkResources = false
-           buildConfigField("String", "FHIR_URL_BASE", "\"http://192.168.1.37:8080/fhir/\"")
+           buildConfigField("String", "FHIR_URL_BASE", "\"http://localhost:8080/fhir/\"")
        }
         getByName("release") {
             isMinifyEnabled = false
@@ -54,7 +54,7 @@ android {
             signingConfig = signingConfigs.getByName("release")
             isDebuggable = true
             //TODO trocar pela url da rnds
-            buildConfigField("String", "FHIR_URL_BASE", "\"http://192.168.1.37:8080/fhir/\"")
+            buildConfigField("String", "FHIR_URL_BASE", "\"http://localhost:8080/fhir/\"")
         }
     }
     compileOptions {

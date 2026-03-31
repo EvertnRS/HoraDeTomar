@@ -305,7 +305,7 @@ fun RegisterMedicineScreen(
                         coroutineScope.launch {
                             val persistedPath = context.persistImage(selectedImageUri!!)
                             val medication = Medication(
-                                name = medicineName,
+                                name = medicationState.name,
                                 via = via,
                                 dose = dose,
                                 userId = 1,
@@ -316,7 +316,7 @@ fun RegisterMedicineScreen(
                             navControler.popBackStack()
                         }
                     } else {
-                        isErrorOnMedicineName = medicineName.isBlank()
+                        isErrorOnMedicineName = medicationState.name.isBlank()
                         isErrorOnVia = via.isBlank()
                         isErrorOnDose = dose.isBlank()
                         if (selectedImageUri == null) {

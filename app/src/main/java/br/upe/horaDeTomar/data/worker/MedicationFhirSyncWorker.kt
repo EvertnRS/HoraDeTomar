@@ -30,8 +30,6 @@ class MedicationFhirSyncWorker @AssistedInject constructor(
             val localId = inputData.getInt("local_medication_id", -1)
             val remoteFhirId = inputData.getString("remove_fhir_id")
 
-            Log.d("TESTE", "doWork: $localId $remoteFhirId")
-
             if (localId != -1) {
                 syncSingleMedication(localId, remoteFhirId)
             } else {
@@ -45,26 +43,39 @@ class MedicationFhirSyncWorker @AssistedInject constructor(
     }
 
     private suspend fun syncSingleMedication(localId: Int, fhirId: String?): Result {
-        val medication = medicationDao.getMedicationById(localId)
-
-        if (medication == null) {
-            Log.w("SyncWorker", "Medicamento $localId não encontrado ainda. Tentando novamente...")
-            return Result.retry()
-        }
+        val medication = medicationDao.getMedicationById(localId) ?: return Result.failure()
 
         val alarms = alarmDao.getAlarmsForMedicationOnce(localId)
         val patientId = getFhirPatientId(medication.userId)
 
         if (patientId == null) {
-            Log.w("SyncWorker", "Paciente ou ID FHIR não encontrado. Tentando novamente...")
+            Log.w("syncSingleMedication", "Paciente não encontrado no FHIR.")
             return Result.retry()
+        }
+
+        var finalMedicationFhirId = fhirId
+
+        var isNullOrBlank = finalMedicationFhirId.isNullOrBlank()
+
+        if (finalMedicationFhirId.isNullOrBlank()) {
+            Log.d("syncSingleMedication", "MedicationFhirId vazio. Criando recurso Medication no servidor...")
+
+            val newMedicationId = dataSource.createMedication(medication)
+
+            if (!newMedicationId.isNullOrBlank()) {
+                finalMedicationFhirId = newMedicationId
+                Log.d("syncSingleMedication", "Novo Medication criado com ID: $finalMedicationFhirId")
+            } else {
+                Log.e("syncSingleMedication", "Falha ao criar recurso Medication base.")
+                return Result.retry()
+            }
         }
 
         val result = dataSource.createMedicationStatement(
             medication = medication,
             alarms = alarms,
             patientFhirId = patientId,
-            medicationFhirId = fhirId
+            medicationFhirId = finalMedicationFhirId
         )
 
         return if (result != null) {

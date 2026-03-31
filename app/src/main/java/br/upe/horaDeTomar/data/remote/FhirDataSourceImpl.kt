@@ -13,6 +13,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.hl7.fhir.r4.model.Bundle
 import org.hl7.fhir.r4.model.Patient
+import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Medication as FhirMedication
 import javax.inject.Inject
 
@@ -108,6 +109,37 @@ class FhirDataSourceImpl @Inject constructor(
             }
         }catch (e: Exception) {
             Log.d("createMedicationStatement", "Erro ao criar MedicationStatement no FHIR: ${e.message}")
+            null
+        }
+    }
+
+    override suspend fun createMedication(medication: Medication): String? {
+        val fhirMedication = FhirMedicationMapper.toFhirMedication(medication)
+
+        val jsonResource = parser.encodeResourceToString(fhirMedication)
+        val mediaType = "application/fhir+json".toMediaType()
+        val requestBody = jsonResource.toRequestBody(mediaType)
+
+        return try {
+            val response = service.postMedication(requestBody)
+
+            if (response.isSuccessful) {
+                val responseBody = response.body()?.string()
+                if (responseBody != null) {
+                    val createdMedication = parser.parseResource(FhirMedication::class.java, responseBody)
+                    createdMedication.idElement?.idPart
+                } else {
+                    null
+                }
+            } else {
+                Log.d(
+                    "createMedication",
+                    "Erro ao criar Medication no FHIR: ${response.errorBody()?.string()}"
+                )
+                null
+            }
+        } catch (e: Exception) {
+            Log.d("createMedication", "Erro ao criar Medication no FHIR: ${e.message}")
             null
         }
     }

@@ -9,7 +9,7 @@ import org.hl7.fhir.r4.model.Patient
 interface FhirDataSource {
     suspend fun createPatient(user: User): String?
     suspend fun getPatientByIdentifier(identifier: String): Patient?
+    suspend fun createMedication(medication: Medication): String?
     suspend fun createMedicationStatement(medication: Medication, alarms: List<Alarm>, patientFhirId: String, medicationFhirId: String? = null): String?
-
     suspend fun searchMedications(query: String): List<MedicationSearchResult>
 }

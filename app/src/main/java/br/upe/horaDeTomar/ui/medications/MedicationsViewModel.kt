@@ -97,7 +97,6 @@ class MedicationsViewModel @Inject constructor(
 
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     suspend fun createMedication() {
-        Log.d("TESTE", "criando medicamento")
         val newMedicationId = repository.insert(medicationCreationState).toInt()
         medicationCreationState = medicationCreationState.copy(id = newMedicationId)
         if (pendingAlarms.isEmpty()) {
@@ -166,16 +165,13 @@ class MedicationsViewModel @Inject constructor(
     }
 
     private fun initSync(localId: Int, fhirId: String?) {
-        Log.d("TESTE", "initSync: $localId $fhirId")
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
         val inputData = androidx.work.Data.Builder()
             .putInt("local_medication_id", localId)
-            .apply {
-                if(fhirId != null) putString("remove_fhir_id", fhirId)
-            }
+            .putString("fhir_id_existente", fhirId)
             .build()
 
         val syncRequest = OneTimeWorkRequestBuilder<MedicationFhirSyncWorker>()
