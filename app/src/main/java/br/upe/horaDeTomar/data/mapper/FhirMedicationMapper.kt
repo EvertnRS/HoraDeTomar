@@ -30,7 +30,7 @@ object FhirMedicationMapper {
         val statement = MedicationStatement()
         statement.status = MedicationStatement.MedicationStatementStatus.ACTIVE
 
-        if (medicationFhirId != null) {
+        if (!medicationFhirId.isNullOrBlank()) {
             val medReference = Reference("Medication/$medicationFhirId")
             medReference.display = medication.name
             statement.medication = medReference
@@ -39,7 +39,6 @@ object FhirMedicationMapper {
             medConcept.text = medication.name
             statement.medication = medConcept
         }
-
 
         statement.subject = Reference("Patient/$patientFhirId")
         statement.effective = org.hl7.fhir.r4.model.DateTimeType(Date())

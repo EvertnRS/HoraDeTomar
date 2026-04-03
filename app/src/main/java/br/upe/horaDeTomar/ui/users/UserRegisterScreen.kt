@@ -102,6 +102,38 @@ fun UserRegisterScreen(
 
     val scroll = rememberScrollState()
 
+    if (userViewModel.showRemotePatientDialog) {
+        AlertDialog(
+            onDismissRequest = { userViewModel.dismissRemotePatientDialog() },
+            title = { Text("CPF já cadastrado") },
+            text = {
+                Text("Já existe um indivíduo cadastrado no servidor com esse CPF. Deseja carregar as informações dele?")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val remoteUser = userViewModel.consumeRemotePatient()
+                        if (remoteUser != null) {
+                            userName = remoteUser.name
+                            address = remoteUser.address
+                            gender = remoteUser.gender
+                            selectedDate = remoteUser.birthDate
+                        }
+                    }
+                ) {
+                    Text("Carregar")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { userViewModel.dismissRemotePatientDialog() }
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()

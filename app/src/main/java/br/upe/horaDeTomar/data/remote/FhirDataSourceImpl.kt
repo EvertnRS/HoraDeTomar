@@ -92,6 +92,8 @@ class FhirDataSourceImpl @Inject constructor(
             medicationFhirId = medicationFhirId
         )
 
+        Log.d("createMedicationStatement", "fhirStatement: $fhirStatement")
+
         val jsonResource = parser.encodeResourceToString(fhirStatement)
         val mediaType = "application/fhir+json".toMediaType()
         val requestBody = jsonResource.toRequestBody(mediaType)
@@ -107,7 +109,7 @@ class FhirDataSourceImpl @Inject constructor(
                 )
                 null
             }
-        }catch (e: Exception) {
+        } catch (e: Exception) {
             Log.d("createMedicationStatement", "Erro ao criar MedicationStatement no FHIR: ${e.message}")
             null
         }

@@ -12,6 +12,7 @@
     import androidx.work.OneTimeWorkRequestBuilder
     import androidx.work.WorkManager
     import br.upe.horaDeTomar.data.entities.User
+    import br.upe.horaDeTomar.data.remote.FhirDataSource
     import br.upe.horaDeTomar.data.repositories.UserRepository
     import br.upe.horaDeTomar.data.worker.UserFhirSyncWorker
     import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,7 +27,8 @@
     @HiltViewModel
     class UsersViewModel @Inject constructor(
         private val repository: UserRepository,
-        private val workManager: WorkManager
+        private val workManager: WorkManager,
+        private val fhirDataSource: FhirDataSource
     ): ViewModel() {
         val users: StateFlow<List<User>> = repository.users
             .stateIn(
@@ -39,6 +41,13 @@
         var cpf by  mutableStateOf("")
         var isErrorOnCPF by  mutableStateOf(false)
         var errorMessage by mutableStateOf<String?>(null)
+
+        var remotePatientFound by mutableStateOf<User?>(null)
+        var showRemotePatientDialog by mutableStateOf(false)
+        var isCheckingRemoteCpf by mutableStateOf(false)
+
+
+
 
 
         suspend fun createUser(userName: String, address: String, birthDate: String, imageUri: String, cpf: String, gender: String) {
@@ -62,24 +71,87 @@
             val cleanCpf = newCpf.filter { it.isDigit() }.take(11)
             cpf = cleanCpf
 
-            if(cleanCpf.length < 11) {
+            remotePatientFound = null
+            showRemotePatientDialog = false
+
+            if (cleanCpf.length < 11) {
                 isErrorOnCPF = false
+                errorMessage = null
                 return
             }
 
             validationJob?.cancel()
             validationJob = viewModelScope.launch {
                 delay(500)
-                val userExists = repository.getByCpf(cleanCpf) != null
-                if (userExists) {
+
+                val userExistsLocal = repository.getByCpf(cleanCpf) != null
+                if (userExistsLocal) {
                     isErrorOnCPF = true
-                    errorMessage = "CPF já cadastrado"
-                } else {
-                    isErrorOnCPF = false
-                    errorMessage = null
+                    errorMessage = "CPF já cadastrado localmente"
+                    return@launch
+                }
+
+                isErrorOnCPF = false
+                errorMessage = null
+
+                try {
+                    isCheckingRemoteCpf = true
+
+                    val patient = fhirDataSource.getPatientByIdentifier(cleanCpf)
+
+                    if (patient != null) {
+                        remotePatientFound = User(
+                            name = patient.nameFirstRep?.nameAsSingleString ?: "",
+                            address = patient.addressFirstRep?.text ?: "",
+                            birthDate = formatFhirDateToBrazilian(patient.birthDateElement?.asStringValue()),
+                            accountId = 1,
+                            imageUri = "",
+                            cpf = cleanCpf,
+                            isSynced = true,
+                            gender = mapFhirGenderToUi(patient.gender?.toCode())
+                        )
+                        showRemotePatientDialog = true
+                        errorMessage = "CPF já cadastrado no servidor"
+                    }
+                } catch (e: Exception) {
+                    Log.e("UsersViewModel", "Erro ao buscar CPF no FHIR: ${e.message}")
+                } finally {
+                    isCheckingRemoteCpf = false
                 }
             }
+        }
 
+        fun dismissRemotePatientDialog() {
+            showRemotePatientDialog = false
+        }
+
+        fun consumeRemotePatient(): User? {
+            showRemotePatientDialog = false
+            return remotePatientFound
+        }
+
+        fun clearRemotePatient() {
+            remotePatientFound = null
+            showRemotePatientDialog = false
+        }
+
+        private fun formatFhirDateToBrazilian(date: String?): String {
+            if (date.isNullOrBlank()) return ""
+            return try {
+                val parts = date.split("-")
+                "${parts[2]}/${parts[1]}/${parts[0]}"
+            } catch (e: Exception) {
+                date
+            }
+        }
+
+        private fun mapFhirGenderToUi(gender: String?): String {
+            return when (gender?.lowercase()) {
+                "male" -> "Masculino"
+                "female" -> "Feminino"
+                "other" -> "Outro"
+                else -> ""
+            }
         }
 
         private fun initSync() {

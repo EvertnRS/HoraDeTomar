@@ -44,7 +44,6 @@ class MedicationFhirSyncWorker @AssistedInject constructor(
 
     private suspend fun syncSingleMedication(localId: Int, fhirId: String?): Result {
         val medication = medicationDao.getMedicationById(localId) ?: return Result.failure()
-
         val alarms = alarmDao.getAlarmsForMedicationOnce(localId)
         val patientId = getFhirPatientId(medication.userId)
 
@@ -55,19 +54,23 @@ class MedicationFhirSyncWorker @AssistedInject constructor(
 
         var finalMedicationFhirId = fhirId
 
-        var isNullOrBlank = finalMedicationFhirId.isNullOrBlank()
-
         if (finalMedicationFhirId.isNullOrBlank()) {
-            Log.d("syncSingleMedication", "MedicationFhirId vazio. Criando recurso Medication no servidor...")
+            Log.d("syncSingleMedication", "MedicationFhirId não informado. Buscando medicamento no FHIR...")
 
-            val newMedicationId = dataSource.createMedication(medication)
+            val foundMedications = dataSource.searchMedications(medication.name)
 
-            if (!newMedicationId.isNullOrBlank()) {
-                finalMedicationFhirId = newMedicationId
-                Log.d("syncSingleMedication", "Novo Medication criado com ID: $finalMedicationFhirId")
+            val existingMedication = foundMedications.firstOrNull {
+                it.name.equals(medication.name, ignoreCase = true)
+            }
+
+            if (existingMedication != null) {
+                finalMedicationFhirId = existingMedication.id
+                Log.d("syncSingleMedication", "Medication encontrado no FHIR. ID: $finalMedicationFhirId")
             } else {
-                Log.e("syncSingleMedication", "Falha ao criar recurso Medication base.")
-                return Result.retry()
+                Log.d(
+                    "syncSingleMedication",
+                    "Medication não encontrado no FHIR. Será enviado no MedicationStatement como CodeableConcept."
+                )
             }
         }
 
@@ -97,7 +100,30 @@ class MedicationFhirSyncWorker @AssistedInject constructor(
             val patientId = getFhirPatientId(medication.userId)
 
             if (patientId != null) {
-                val result = dataSource.createMedicationStatement(medication, alarms, patientId, null)
+                var medicationFhirId: String? = null
+
+                val foundMedications = dataSource.searchMedications(medication.name)
+                val existingMedication = foundMedications.firstOrNull {
+                    it.name.equals(medication.name, ignoreCase = true)
+                }
+
+                if (existingMedication != null) {
+                    medicationFhirId = existingMedication.id
+                    Log.d("syncAllUnsynced", "Medication encontrado no FHIR. ID: $medicationFhirId")
+                } else {
+                    Log.d(
+                        "syncAllUnsynced",
+                        "Medication não encontrado no FHIR. Será enviado como CodeableConcept."
+                    )
+                }
+
+                val result = dataSource.createMedicationStatement(
+                    medication = medication,
+                    alarms = alarms,
+                    patientFhirId = patientId,
+                    medicationFhirId = medicationFhirId
+                )
+
                 if (result == null) allSuccess = false
             } else {
                 allSuccess = false
