@@ -65,13 +65,14 @@ fun UserRegisterScreen(
     var userName by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
-    var selectedDate: String? by remember { mutableStateOf<String?>(null) }
+    var selectedDate: String? by remember { mutableStateOf(null) }
     var showModal by remember { mutableStateOf(false) }
 
     var isErrorOnUserName by remember { mutableStateOf(false) }
     var isErrorOnAddress by remember { mutableStateOf(false) }
     var isErrorOnDate by remember { mutableStateOf(false) }
     var isErrorOnGender by remember { mutableStateOf(false) }
+    var hasTriedSubmit by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -84,10 +85,14 @@ fun UserRegisterScreen(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri -> selectedPhotoUri = uri }
     )
+
     val singlePhotoTakeContract = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
-        onResult = { success -> if (success) selectedPhotoUri = tempPhotoUri }
+        onResult = { success ->
+            if (success) selectedPhotoUri = tempPhotoUri
+        }
     )
+
     val cameraPermissionState = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
@@ -101,6 +106,15 @@ fun UserRegisterScreen(
     )
 
     val scroll = rememberScrollState()
+
+    // Validação local do CPF
+    val cpfDigits = userViewModel.cpf.filter { it.isDigit() }
+    val isCpfInvalid = cpfDigits.length != 11
+    val cpfErrorMessage = when {
+        cpfDigits.isBlank() -> "CPF é obrigatório"
+        cpfDigits.length < 11 -> "CPF incompleto"
+        else -> null
+    }
 
     if (userViewModel.showRemotePatientDialog) {
         AlertDialog(
@@ -155,7 +169,10 @@ fun UserRegisterScreen(
                     .size(88.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .background(green_secondary)
-                    .border(BorderStroke(1.dp, md_theme_light_outline), RoundedCornerShape(20.dp)),
+                    .border(
+                        BorderStroke(1.dp, md_theme_light_outline),
+                        RoundedCornerShape(20.dp)
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -186,12 +203,16 @@ fun UserRegisterScreen(
             CardTextField(
                 label = "Cpf do usuário",
                 value = userViewModel.cpf,
-                onValueChange = { userViewModel.onCpfChange(it) },
+                onValueChange = { value ->
+                    // Mantém apenas dígitos e limita a 11
+                    val filtered = value.filter { it.isDigit() }.take(11)
+                    userViewModel.onCpfChange(filtered)
+                },
                 placeholder = "Ex: xxx.xxx.xxx-xx",
                 keyboardType = KeyboardType.Number,
                 visualTransformation = CpfMaskTransformation(),
-                isError = userViewModel.isErrorOnCPF,
-                errorMessage = userViewModel.errorMessage,
+                isError = hasTriedSubmit && isCpfInvalid,
+                errorMessage = if (hasTriedSubmit) cpfErrorMessage else null,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 6.dp)
@@ -265,6 +286,7 @@ fun UserRegisterScreen(
                         .weight(1f)
                         .padding(end = 6.dp)
                 )
+
                 TakePhotoButton(
                     onClick = {
                         focusManager.clearFocus()
@@ -279,8 +301,7 @@ fun UserRegisterScreen(
             if (selectedPhotoUri != null) {
                 Spacer(Modifier.height(8.dp))
                 ElevatedCard(
-                    modifier = Modifier
-                        .fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.elevatedCardColors(containerColor = green_card)
                 ) {
@@ -297,23 +318,63 @@ fun UserRegisterScreen(
 
             RegisterButton(
                 onClick = {
-                    if (userName.isNotBlank() && address.isNotBlank() && !selectedDate.isNullOrBlank() && selectedPhotoUri != null && !userViewModel.isErrorOnCPF) {
+                    hasTriedSubmit = true
+
+                    isErrorOnUserName = userName.isBlank()
+                    isErrorOnAddress = address.isBlank()
+                    isErrorOnDate = selectedDate.isNullOrBlank()
+                    isErrorOnGender = gender.isBlank()
+
+                    val isFormValid =
+                        userName.isNotBlank() &&
+                                address.isNotBlank() &&
+                                !selectedDate.isNullOrBlank() &&
+                                gender.isNotBlank() &&
+                                selectedPhotoUri != null &&
+                                !isCpfInvalid
+
+                    if (isFormValid) {
                         coroutineScope.launch {
                             val persistedPath = context.persistImage(selectedPhotoUri!!)
+
                             if (isFirstTime) {
                                 accountViewModel.createAccount(userName)
-                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath, userViewModel.cpf, gender)
-                            } else {
-                                userViewModel.createUser(userName, address, selectedDate!!, persistedPath, userViewModel.cpf, gender)
                             }
+
+                            userViewModel.createUser(
+                                userName,
+                                address,
+                                selectedDate!!,
+                                persistedPath,
+                                cpfDigits,
+                                gender
+                            )
+
                             onUserRegistered()
                         }
                     } else {
-                        isErrorOnUserName = userName.isBlank()
-                        isErrorOnAddress = address.isBlank()
-                        isErrorOnDate = selectedDate.isNullOrBlank()
-                        if (selectedPhotoUri == null) {
-                            Toast.makeText(context, "Selecione uma imagem", Toast.LENGTH_LONG).show()
+                        when {
+                            isCpfInvalid -> {
+                                Toast.makeText(
+                                    context,
+                                    cpfErrorMessage ?: "CPF inválido",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            selectedPhotoUri == null -> {
+                                Toast.makeText(
+                                    context,
+                                    "Selecione uma imagem",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            gender.isBlank() -> {
+                                Toast.makeText(
+                                    context,
+                                    "Selecione o sexo",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
                         }
                     }
                 },
@@ -326,22 +387,24 @@ fun UserRegisterScreen(
         }
     }
 }
-class CpfMaskTransformation: VisualTransformation {
-    //###.###.###-##
+
+class CpfMaskTransformation : VisualTransformation {
+    // ###.###.###-##
     override fun filter(text: AnnotatedString): TransformedText {
         val cpfMask = text.text.mapIndexed { index, c ->
-            when(index) {
+            when (index) {
                 2 -> "$c."
                 5 -> "$c."
                 8 -> "$c-"
                 else -> c
             }
         }.joinToString(separator = "")
+
         return TransformedText(AnnotatedString(cpfMask), CpfOffsetMapping)
     }
 }
 
-object CpfOffsetMapping: OffsetMapping {
+object CpfOffsetMapping : OffsetMapping {
     override fun originalToTransformed(offset: Int): Int {
         return when {
             offset <= 2 -> offset
@@ -365,9 +428,7 @@ fun Long.toBrazilianDateFormat(
     pattern: String = "dd/MM/yyyy"
 ): String {
     val date = Date(this)
-    val formatter = SimpleDateFormat(
-        pattern, Locale("pt", "BR")
-    ).apply {
+    val formatter = SimpleDateFormat(pattern, Locale("pt", "BR")).apply {
         timeZone = TimeZone.getTimeZone("GMT")
     }
     return formatter.format(date)

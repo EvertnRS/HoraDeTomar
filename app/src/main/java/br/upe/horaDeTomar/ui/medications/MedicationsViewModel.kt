@@ -14,6 +14,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import br.upe.horaDeTomar.data.daos.PrescriptionDao
 import br.upe.horaDeTomar.data.entities.Alarm
 import br.upe.horaDeTomar.data.entities.Medication
 import br.upe.horaDeTomar.data.manager.AlarmScheduler
@@ -37,7 +38,8 @@ class MedicationsViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val alarmScheduler: AlarmScheduler,
     private val workManager: WorkManager,
-    private val fhirDataSource: FhirDataSource
+    private val fhirDataSource: FhirDataSource,
+    private val prescriptionDao: PrescriptionDao
 ) : ViewModel(), AlarmActions {
 
     val medications: StateFlow<List<Medication>> = repository.medications
@@ -211,5 +213,19 @@ class MedicationsViewModel @Inject constructor(
         selectedFhirId = medication.id
         searchResults.clear()
         isSearching = false
+    }
+
+    fun loadPrescriptionData(prescriptionId: Int, onDataLoaded: (String, String) -> Unit) {
+        Log.d("TESTE", "Prescription ID: $prescriptionId")
+        viewModelScope.launch {
+            val prescription = prescriptionDao.getPrescriptionById(prescriptionId)
+            Log.d("TESTE", "Prescription: $prescription")
+
+            if (prescription != null) {
+                onMedicationNameChange(prescription.medicationName)
+
+                onDataLoaded(prescription.dosageInstruction, prescription.via)
+            }
+        }
     }
 }

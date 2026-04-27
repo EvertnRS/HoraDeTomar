@@ -67,6 +67,7 @@ import androidx.compose.foundation.lazy.items
 fun RegisterMedicineScreen(
     viewModel: MedicationsViewModel = hiltViewModel(),
     navControler: NavController,
+    prescriptionId: Int? = null
 ) {
     val medicationState = viewModel.medicationCreationState
     val searchResults = viewModel.searchResults
@@ -122,6 +123,15 @@ fun RegisterMedicineScreen(
     val scrollState = rememberScrollState()
 
     var showAlarmSettingsDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(prescriptionId) {
+        if (prescriptionId != null) {
+            viewModel.loadPrescriptionData(prescriptionId) { instructions, suggestedVia ->
+                dose = instructions
+                via = suggestedVia
+            }
+        }
+    }
 
     BoxWithConstraints (
         modifier = Modifier

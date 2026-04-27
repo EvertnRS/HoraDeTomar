@@ -9,6 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.work.WorkManager
 import br.upe.horaDeTomar.BuildConfig
 import br.upe.horaDeTomar.data.AppDatabase
+import br.upe.horaDeTomar.data.daos.PrescriptionDao
 import br.upe.horaDeTomar.data.daos.UserDao
 import br.upe.horaDeTomar.data.remote.FhirDataSource
 import br.upe.horaDeTomar.data.remote.FhirDataSourceImpl
@@ -122,5 +123,10 @@ object AppModule {
     @Singleton
     fun provideWorkManager(@ApplicationContext context: Context): WorkManager {
         return WorkManager.getInstance(context)
+    }
+
+    @Provides
+    fun providePrescriptionDao(database: AppDatabase): PrescriptionDao {
+        return database.prescriptionDao()
     }
 }

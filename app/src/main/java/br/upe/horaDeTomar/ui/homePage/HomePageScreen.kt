@@ -25,6 +25,7 @@ import br.upe.horaDeTomar.ui.medications.MedicationsViewModel
 import br.upe.horaDeTomar.ui.users.UsersViewModel
 import br.upe.horaDeTomar.ui.themes.*
 import br.upe.horaDeTomar.util.helpers.TimeFilter
+import kotlinx.coroutines.launch
 
 import java.time.LocalTime
 
@@ -33,11 +34,15 @@ fun HomePageScreen(
     modifier: Modifier = Modifier,
     navController: NavController,
     userViewModel: UsersViewModel = hiltViewModel(),
-    medicationViewModel: MedicationsViewModel = hiltViewModel()
+    medicationViewModel: MedicationsViewModel = hiltViewModel(),
+    homeViewModel: HomePageViewModel = hiltViewModel()
 ) {
     val usersState by userViewModel.users.collectAsState()
     val medicationsState by medicationViewModel.medications.collectAsState()
     val alarmListState by medicationViewModel.alarmListState.collectAsState()
+
+    val pendingPrescription by homeViewModel.pendingPrescription.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
 
     var selectedFilter by rememberSaveable { mutableStateOf(TimeFilter.All) }
 
@@ -56,6 +61,45 @@ fun HomePageScreen(
                 TimeFilter.Night     -> alarms.any { it.hour.toIntOrNull()?.let { h -> h in 18..23 || h in 0..4 } == true }
             }
         }
+    }
+
+    LaunchedEffect(Unit) {
+        homeViewModel.searchPrescriptions()
+    }
+
+    if (pendingPrescription.isNotEmpty()) {
+        val newPrescription = pendingPrescription.first()
+
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text(text = "Nova Prescrição Médica!") },
+            text = {
+                Text(text = "O seu médico prescreveu:\n\n${newPrescription.medicationName}\n${newPrescription.dosageInstruction}\n\nDeseja configurar o alarme para este medicamento agora?")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            homeViewModel.markAsProcessed(newPrescription)
+                            navController.navigate("registerMedication?prescriptionId=${newPrescription.id}")
+                        }
+                    }
+                ) {
+                    Text("Configurar Alarme")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            homeViewModel.markAsProcessed(newPrescription)
+                        }
+                    }
+                ) {
+                    Text("Ignorar")
+                }
+            }
+        )
     }
 
     LazyColumn(

@@ -13,7 +13,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.hl7.fhir.r4.model.Bundle
 import org.hl7.fhir.r4.model.Patient
-import org.hl7.fhir.r4.model.CodeableConcept
+import org.hl7.fhir.r4.model.MedicationRequest
 import org.hl7.fhir.r4.model.Medication as FhirMedication
 import javax.inject.Inject
 
@@ -186,6 +186,36 @@ class FhirDataSourceImpl @Inject constructor(
         } catch (e: Exception) {
             Log.e("FHIR_SEARCH", "Exception: ${e.message}")
             return@withContext emptyList()
+        }
+    }
+
+    override suspend fun getPatientMedicationRequests(userCpf: String): List<MedicationRequest> {
+        try {
+            val patient = getPatientByIdentifier(userCpf)
+            val patientFhirId = patient?.idElement?.idPart
+            val patientReference = "Patient/$patientFhirId"
+
+
+            val response = service.getMedicationRequestByPatient(patientReference)
+
+            if (response.isSuccessful && response.body() != null) {
+                val jsonString = response.body()!!.string()
+
+                val bundle = parser.parseResource(Bundle::class.java, jsonString)
+
+                Log.d("TESTE", "bundle: $bundle")
+
+                return bundle.entry.mapNotNull { entry ->
+                    entry.resource as? MedicationRequest
+                }
+            } else {
+                Log.e("getPatientMedicationRequests", "Erro na busca: ${response.code()}")
+                return emptyList()
+            }
+
+        } catch (e: Exception) {
+            Log.e("getPatientMedicationRequests", "Exception: ${e.message}")
+            return emptyList()
         }
     }
 }

@@ -148,8 +148,22 @@ fun MainScreen(viewModel: AccountViewModel = hiltViewModel()) {
                     composable(TopLevelsDestinations.Settings.route) {
                         SettingsScreen()
                     }
-                    composable("registerMedication") {
-                        RegisterMedicineScreen(navControler = navController)
+                    composable(
+                        route = "registerMedication?prescriptionId={prescriptionId}",
+                        arguments = listOf(
+                            androidx.navigation.navArgument("prescriptionId") {
+                                type = androidx.navigation.NavType.StringType
+                                nullable = true
+                            }
+                        )
+                    ) { backStackEntry ->
+                        val pIdString = backStackEntry.arguments?.getString("prescriptionId")
+                        val prescriptionId = pIdString?.toIntOrNull()
+
+                        RegisterMedicineScreen(
+                            navControler = navController,
+                            prescriptionId = prescriptionId
+                        )
                     }
                     composable("registerUser") {
                         UserRegisterScreen(
